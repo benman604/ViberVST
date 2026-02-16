@@ -19,16 +19,32 @@ ViberAudioProcessor::ViberAudioProcessor()
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
-                       )
+                       ),
+    parameters (*this, nullptr, "PARAMS", createParameterLayout())
 #endif
 {
     fftInput.resize(fftSize * 2, 0.0f);
     fftMagnitudes.resize(fftSize / 2, 0.0f);
     fft = juce::dsp::FFT(fftOrder);
+    
+    gainParam = parameters.getRawParameterValue("gain");
 }
 
 ViberAudioProcessor::~ViberAudioProcessor()
 {
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout
+ViberAudioProcessor::createParameterLayout()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    params.push_back (std::make_unique<juce::AudioParameterFloat>(
+        "gain", "Gain",
+        0.0f, 1.0f, 0.5f
+    ));
+
+    return { params.begin(), params.end() };
 }
 
 //==============================================================================

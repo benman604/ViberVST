@@ -14,7 +14,7 @@ document.body.appendChild(renderer.domElement);
 // FFT
 window.__JUCE__.backend.addEventListener("fftframe", (event) => {
     const magnitudeArray = event.split(',').map(parseFloat);
-    console.log("FFT Frame:", magnitudeArray);
+    // console.log("FFT Frame:", magnitudeArray);
 });
 
 // Lighting

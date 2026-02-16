@@ -7,6 +7,7 @@ const maxMeowDuration = 225; // ms
 // If TIMED_OFF is false, notes auto-close after maxMeowDuration (current behavior).
 // If TIMED_OFF is true, cats stay open until a 'noteoff' event arrives for that note.
 const TIMED_OFF = false;
+const sketchContainer = "sketch";
 
 let currFFTFrame = null;
 
@@ -15,6 +16,9 @@ window.__JUCE__.backend.addEventListener("fftframe", (event) => {
     const payload = typeof event === 'string' ? event : (event?.detail ?? '');
     if (typeof payload === 'string' && payload.length) {
         const magnitudeArray = payload.split(',').map(parseFloat);
+        if (magnitudeArray.some((x) => x > 0)) {
+            console.log("FFT Frame:", magnitudeArray);
+        }
         // console.log("FFT Frame:", magnitudeArray);
         currFFTFrame = magnitudeArray;
     }
@@ -112,17 +116,15 @@ new p5((p) => {
     };
 
     p.setup = () => {
-        // make canvas responsive-ish: full width, fixed height
-        const w = Math.max(600, p.windowWidth - 100);
-        p.createCanvas(w, 200);
+        let canvas = p.createCanvas(p.windowWidth, p.windowHeight);
+        canvas.parent(sketchContainer);
         p.background(0);
         p.imageMode(p.CENTER);
         p.noSmooth();
     };
 
     p.windowResized = () => {
-        const w = Math.max(600, p.windowWidth - 100);
-        p.resizeCanvas(w, 200);
+        p.resizeCanvas(p.windowWidth, p.windowHeight);
     };
 
     p.draw = () => {

@@ -5,14 +5,14 @@
     <style>
         body { margin: 0; }
     </style>
-    <!-- <script type="importmap">
+    <script type="importmap">
         {
           "imports": {
             "three": "https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.module.js",
             "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.174.0/examples/jsm/"
           }
         }
-    </script> -->
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.9/lib/p5.min.js"></script>
     <link rel="stylesheet" type="text/css" href="css/styles.css">
     <meta charset="utf-8" />
@@ -20,9 +20,14 @@
   </head>
   <body>
     <!-- <h1 id="note">Awaiting MIDI input...</h1> -->
-     <main>
+     <div>
+       <button id="nextbtn" aria-label="next sketch">›</button>
+     </div>
+    <div id="sketch"></div>
+    <main></main>
 
-     </main>
-    <script type="module" src="js/p5animation.js"></script>
+    <script type="module" src="js/selector.js"></script>
+    <!-- <script type="module" src="js/p5animation.js"></script> -->
+    <!-- <script type="module" src="js/threeanimation.js"></script> -->
 </body>
 </html>

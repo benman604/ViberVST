@@ -69,9 +69,15 @@ public:
     std::atomic<bool> fftReady = false;
     
     void pushNextSampleIntoFifo(float sample);
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ViberAudioProcessor)
     int fifoIndex = 0;
+    
+    juce::AudioParameterFloat* gain;
+    std::atomic<float>* gainParam = nullptr;
+
+    juce::AudioProcessorValueTreeState parameters;
 };
