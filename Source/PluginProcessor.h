@@ -64,6 +64,7 @@ public:
     std::vector<float> fftWindow;    // Holds latest time-domain samples
     std::vector<float> fftInput;     // Zero-padded input buffer
     std::vector<float> fftMagnitudes;
+    std::vector<float> fftDisplay; // normalized 0..1 values for frontend
     std::vector<std::complex<float>> fftOutput; // Output after FFT
     juce::dsp::WindowingFunction<float> window { fftSize, juce::dsp::WindowingFunction<float>::hann };
     std::atomic<bool> fftReady = false;

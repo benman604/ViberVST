@@ -115,14 +115,14 @@ void ViberAudioProcessorEditor::timerCallback() {
     if (proc != nullptr && proc->fftReady.load()) {
         proc->fftReady.store(false);
         juce::String data;
-        for (float mag : proc->fftMagnitudes) {
+        for (float mag : proc->fftDisplay) {
             data += juce::String(mag) + ",";
         }
-        
+
         if (data.endsWith(",")) {
             data = data.dropLastCharacters(1);
         }
-        
+
         webView.emitEventIfBrowserIsVisible(broadcast_fft_data, data);
     }
     

@@ -13,18 +13,23 @@
 ViberAudioProcessor::ViberAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
-                     #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
-                       .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                      #endif
-                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
-                     #endif
+                       .withInput("Input", juce::AudioChannelSet::stereo(), true)
+                       .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+//                     #if ! JucePlugin_IsMidiEffect
+//                                            #if ! JucePlugin_IsSynth
+//                                             .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
+//                                            #endif
+//                                             // Always expose a sidechain input so synth builds can receive audio
+//                                             .withInput  ("Sidechain", juce::AudioChannelSet::stereo(), true)
+//                                             .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
+//                     #endif
                        ),
     parameters (*this, nullptr, "PARAMS", createParameterLayout())
 #endif
 {
     fftInput.resize(fftSize * 2, 0.0f);
     fftMagnitudes.resize(fftSize / 2, 0.0f);
+    fftDisplay.resize(fftSize / 2, 0.0f);
     fft = juce::dsp::FFT(fftOrder);
     
     gainParam = parameters.getRawParameterValue("gain");
@@ -137,11 +142,15 @@ bool ViberAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) co
      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
 
-    // This checks if the input layout matches the output layout
-   #if ! JucePlugin_IsSynth
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
-        return false;
-   #endif
+        // For synth plugins we allow an output bus with a sidechain input.
+     #if JucePlugin_IsSynth
+        juce::ignoreUnused (layouts);
+        // Accept stereo/mono output; sidechain input layout is handled by the host.
+     #else
+        // This checks if the input layout matches the output layout for non-synth plugins
+        if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
+                return false;
+     #endif
 
     return true;
   #endif
@@ -158,8 +167,19 @@ void ViberAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         buffer.clear (i, 0, buffer.getNumSamples());
 
     // Read and send MIDI data to frontend
+    int midiCount = 0;
+    for (const auto metadata : midiMessages)
+        ++midiCount;
+    DBG("processBlock MIDI message count = " << midiCount);
+
+    int printed = 0;
     for (const auto metadata : midiMessages) {
         auto message = metadata.getMessage();
+
+        if (printed < 8) {
+            DBG("MIDI msg: " << message.getDescription());
+            ++printed;
+        }
 
         juce::AudioProcessorEditor* editor = getActiveEditor();
         auto* myeditor = dynamic_cast<ViberAudioProcessorEditor*>(editor);
@@ -176,30 +196,50 @@ void ViberAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         }
     }
     
-    // Process audio buffer
-    auto* channelData = buffer.getReadPointer(0);
+    // Process audio buffer: mix all available input channels and feed into FFT FIFO
     int numSamples = buffer.getNumSamples();
-    
-    for (int i=0; i<numSamples; i++) {
-        pushNextSampleIntoFifo(channelData[i]);
+    int numInputCh = juce::jmax(1, totalNumInputChannels);
+
+    for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
+        float mixed = 0.0f;
+        for (int ch = 0; ch < numInputCh; ++ch) {
+            mixed += buffer.getReadPointer(ch)[sampleIndex];
+        }
+        mixed /= static_cast<float>(numInputCh);
+        pushNextSampleIntoFifo(mixed);
     }
 }
 
 void ViberAudioProcessor::pushNextSampleIntoFifo(float sample) {
     fftInput[fifoIndex++] = sample;
 
-    if (fifoIndex == fftSize) {
+    if (fifoIndex == static_cast<int>(fftSize)) {
         fifoIndex = 0;
 
-        // Apply window
-        window.multiplyWithWindowingTable(fftInput.data(), fftSize);
+        // Apply window to the real samples (first fftSize elements)
+        window.multiplyWithWindowingTable(fftInput.data(), static_cast<int>(fftSize));
 
-        // Perform FFT (magnitude only)
+        // Zero the imaginary / upper half to ensure a clean real-valued FFT input
+        if (fftInput.size() >= fftSize * 2) {
+            std::fill(fftInput.begin() + fftSize, fftInput.begin() + fftSize * 2, 0.0f);
+        }
+
+        // Perform FFT (in-place, frequency-only optimized output)
         fft.performFrequencyOnlyForwardTransform(fftInput.data());
 
-        // Store magnitudes
-        for (int i = 0; i < fftSize / 2; ++i)
-            fftMagnitudes[i] = fftInput[i];
+        // Store magnitudes (first fftSize/2 bins) and compute normalized display values
+        for (size_t i = 0; i < fftSize / 2; ++i) {
+            const float mag = fftInput[i];
+            fftMagnitudes[i] = mag;
+            // Convert to dB and normalize to [0,1] where -100 dB -> 0, 0 dB -> 1
+            const float safe = std::max(mag, 1e-8f);
+            const float db = 20.0f * std::log10(safe);
+            float norm = (db + 100.0f) / 100.0f;
+            if (norm < 0.0f) norm = 0.0f;
+            if (norm > 1.0f) norm = 1.0f;
+            if (fftDisplay.size() < fftMagnitudes.size()) fftDisplay.resize(fftMagnitudes.size(), 0.0f);
+            fftDisplay[i] = norm;
+        }
 
         fftReady.store(true);
     }
