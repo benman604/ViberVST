@@ -1,9 +1,10 @@
 // selector.js - dynamic sketch loader
 const sketches = [
   './p5animation.js',
-  './p5fft.js',
+  './p5fft3dcircle.js',
   './p5fft3d.js',
-  './threeanimation.js'
+  // './p5vibe.js',
+  // './threeanimation.js'
 ];
 
 let state = {

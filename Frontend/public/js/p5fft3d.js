@@ -95,10 +95,16 @@ new p5((p) => {
       const bufferIndex = Math.floor(p.map(x, -rx, rx, 0, windowSize - 1));
 
       const spec = buffer.get(bufferIndex)[0];
-      let _energyb = buffer.get(bufferIndex)[1];
-      let _energyt = buffer.get(bufferIndex)[2];
-      p.fill(255 - _energyb / 1.5, 255 - _energyb, 255 - _energyb);
-      p.stroke(255 - _energyt, 255 - _energyt, 255 - _energyt, 100);
+      let _energyb = buffer.get(bufferIndex)[1] || 0;
+      let _energyt = buffer.get(bufferIndex)[2] || 0;
+      // Backend sends normalized magnitudes in 0..1. Map them to 0..255
+      const eb = p.constrain(_energyb, 0, 1);
+      const et = p.constrain(_energyt, 0, 1);
+      const bassColor = p.map(eb, 0, 1, 40, 255);    // stronger bass -> more red
+      const trebleColor = p.map(et, 0, 1, 40, 255);  // stronger treble -> more blue
+      const midMix = p.map((eb + et) / 2, 0, 1, 40, 180);
+      p.fill(bassColor, midMix, trebleColor, 200);
+      p.stroke(bassColor * 0.6, midMix * 0.6, trebleColor * 0.6, 180);
       if (!spec || !spec.length) continue;
 
       p.push();
